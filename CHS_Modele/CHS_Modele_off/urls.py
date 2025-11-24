@@ -7,6 +7,6 @@ urlpatterns = [
     path('create/', views.create_chs, name='create_chs'),
     path('login/', views.login_page, name='login_page'),
     path('logout/', views.logout_user, name='logout_user'),
-
+    path('Statistique/', views.Statistique, name='Statistique'),
 
 ]

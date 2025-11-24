@@ -373,7 +373,7 @@ class CHSModel(models.Model):
         s += self.poly * 4
 
         self.score = s
-        if s > 80:
+        if s > 90:
             self.decision = 'Indigent • فقير مستحق'
         else:
             self.decision = 'Non indigent • غير فقير'

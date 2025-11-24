@@ -39,7 +39,7 @@ def logout_user(request):
 def chs_dash(request):
     chs_queryset = CHSModel.objects.all().order_by('-date_jour')
     total_dossiers = chs_queryset.count()
-    total_indigents = chs_queryset.filter(decision__icontains='Indigent').count()
+    total_indigents = chs_queryset.filter(decision__icontains='Indigent • فقير مستحق').count()
     total_non_indigents = chs_queryset.filter(decision__icontains='Non indigent').count()
 
     score_moyenne = chs_queryset.aggregate(avg_score=Avg('score'))['avg_score'] or 0
@@ -114,3 +114,23 @@ def create_chs(request):
         messages.error(request, f'Une erreur inattendue s\'est produite : {str(e)}')
         return redirect('chs_dash')
 
+
+
+@login_required(login_url='login_page')
+def Statistique (request):
+    indigents_par_wilaya = (
+        CHSModel.objects.filter(decision__icontains='Indigent')
+        .values('wilaya')
+        .annotate(total=Count('id'))
+        .order_by('-total')
+    )
+
+    wilaya_counts = []
+
+    for entry in indigents_par_wilaya:
+        label = dict(CHSModel.WILAYA_CHOICES).get(entry['wilaya'], entry['wilaya'])
+        wilaya_counts.append({'wilaya': label, 'total': entry['total']})
+
+    return render(request, 'Statistique.html', {
+        'indigents_par_wilaya': json.dumps(wilaya_counts)
+    })

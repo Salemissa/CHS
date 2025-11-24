@@ -1,0 +1,203 @@
+{% include 'navbar.html' %}
+ <div class="container">
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"> Répartition des indigents par wilaya</h5>
+                <small class="text-muted">Visualisation des données d'indigence</small>
+            </div>
+            <div class="card-body">
+                
+                    <div class="">
+                        <canvas id="indigentsWilayaChart" height="300"></canvas>
+                    </div>
+                    <div class="">
+                        <h6 class="text-left mb-3">Résumé</h6>
+                        <div class="list-group list-group-flush" id="wilayaSummary">
+                            <!-- Résumé dynamique ici -->
+                        </div>
+                        <p class="text-muted small mt-3">Cliquez sur une barre pour plus de détails.</p>
+                    </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+
+</div>
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const searchInput = document.getElementById('searchMissionInput');
+if (searchInput) {
+  searchInput.addEventListener('input', function() {
+    const filter = this.value.toLowerCase();
+    const rows = document.querySelectorAll('table tbody tr');
+    let visibleRows = 0;
+    
+    rows.forEach(row => {
+      const numeroCell = row.querySelector('td'); // Première colonne = numéro
+      const numero = numeroCell ? numeroCell.textContent.toLowerCase() : '';
+      const isVisible = numero.includes(filter);
+      row.style.display = isVisible ? '' : 'none';
+      if (isVisible) visibleRows++;
+    });
+    
+    // Afficher un message si aucun résultat
+    const noResultsRow = document.getElementById('noResultsRow');
+    if (visibleRows === 0) {
+      if (!noResultsRow) {
+        const tableBody = document.querySelector('table tbody');
+        const newRow = document.createElement('tr');
+        newRow.id = 'noResultsRow';
+        newRow.innerHTML = `
+          <td colspan="5" class="text-center py-5">
+            <i class="fas fa-search-minus fa-3x mb-3"></i>
+            <h5>Aucun dossier trouvé</h5>
+            <p class="text-muted">Essayez une autre recherche.</p>
+          </td>
+        `;
+        tableBody.appendChild(newRow);
+      }
+    } else if (noResultsRow) {
+      noResultsRow.remove();
+    }
+  });
+}
+
+// Graphique amélioré pour les indigents par wilaya
+const wilayaDataRaw = '{{ indigents_par_wilaya|escapejs }}';
+const wilayaData = wilayaDataRaw ? JSON.parse(wilayaDataRaw) : [];
+
+if (wilayaData.length > 0) {
+  const ctx = document.getElementById('indigentsWilayaChart');
+  if (ctx) {
+    const labels = wilayaData.map(item => item.wilaya);
+    const data = wilayaData.map(item => item.total);
+
+    // Générer des couleurs variées
+    const colors = [
+      'rgba(255, 99, 132, 0.7)',
+      'rgba(54, 162, 235, 0.7)',
+      'rgba(255, 205, 86, 0.7)',
+      'rgba(75, 192, 192, 0.7)',
+      'rgba(153, 102, 255, 0.7)',
+      'rgba(255, 159, 64, 0.7)',
+      'rgba(199, 199, 199, 0.7)',
+      'rgba(83, 102, 255, 0.7)',
+      'rgba(255, 102, 255, 0.7)',
+      'rgba(102, 255, 102, 0.7)'
+    ];
+    const borderColors = colors.map(color => color.replace('0.7', '1'));
+
+    const chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [{
+          label: 'Nombre d\'indigents',
+          data: data,
+          backgroundColor: colors.slice(0, data.length),
+          borderColor: borderColors.slice(0, data.length),
+          borderWidth: 2,
+          borderRadius: 8,
+          borderSkipped: false,
+          hoverBackgroundColor: colors.slice(0, data.length).map(color => color.replace('0.7', '0.9')),
+          hoverBorderColor: borderColors.slice(0, data.length)
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        animation: {
+          duration: 2000,
+          easing: 'easeOutBounce'
+        },
+        plugins: {
+          legend: {
+            display: false
+          },
+          tooltip: {
+            backgroundColor: 'rgba(0, 0, 0, 0.8)',
+            titleColor: 'white',
+            bodyColor: 'white',
+            callbacks: {
+              title: function(tooltipItems) {
+                return `Wilaya: ${tooltipItems[0].label}`;
+              },
+              label: function(context) {
+                const total = context.parsed.y;
+                const percentage = ((total / data.reduce((a, b) => a + b, 0)) * 100).toFixed(1);
+                return `${total} indigent(s) (${percentage}%)`;
+              }
+            }
+          }
+        },
+        scales: {
+          x: {
+            grid: {
+              display: false
+            },
+            ticks: {
+              autoSkip: false,
+              maxRotation: 45,
+              minRotation: 45,
+              font: {
+                size: 12,
+                weight: 'bold'
+              }
+            }
+          },
+          y: {
+            beginAtZero: true,
+            ticks: {
+              stepSize: 1,
+              font: {
+                size: 12
+              }
+            },
+            grid: {
+              color: 'rgba(0, 0, 0, 0.1)'
+            }
+          }
+        },
+        onClick: function(event, elements) {
+          if (elements.length > 0) {
+            const index = elements[0].index;
+            const selectedWilaya = labels[index];
+            const count = data[index];
+            alert(`Détails pour ${selectedWilaya}:\nNombre d'indigents: ${count}\n\n(Cette fonctionnalité peut être étendue pour afficher plus de détails.)`);
+          }
+        }
+      }
+    });
+
+    // Mettre à jour le résumé
+    const summaryDiv = document.getElementById('wilayaSummary');
+    if (summaryDiv) {
+      summaryDiv.innerHTML = '';
+      wilayaData.forEach((item, index) => {
+        const itemDiv = document.createElement('div');
+        itemDiv.className = 'list-group-item d-flex justify-content-between align-items-center';
+        itemDiv.innerHTML = `
+          <span><span class="badge me-2" style="background-color: ${colors[index]}; width: 12px; height: 12px; border-radius: 50%; display: inline-block;"></span>${item.wilaya}</span>
+          <span class="badge bg-secondary">${item.total}</span>
+        `;
+        summaryDiv.appendChild(itemDiv);
+      });
+
+      // Ajouter le total
+      const totalDiv = document.createElement('div');
+      totalDiv.className = 'list-group-item d-flex justify-content-between align-items-center fw-bold';
+      totalDiv.innerHTML = `
+        <span>Total indigents</span>
+        <span class="badge bg-primary">${data.reduce((a, b) => a + b, 0)}</span>
+      `;
+      summaryDiv.appendChild(totalDiv);
+    }
+  }
+}
+</script>
+{% endblock extra_js %}
